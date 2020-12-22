@@ -1,0 +1,100 @@
+---
+title: "Visualizing Redlining Tutorial"
+author: "Andrew Carr"
+date: "12/5/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(stringr)
+library(rgdal)
+library(dplyr)
+
+# Takes shapefile and returns scaled dimensions for ggplot 
+get_dims <- function(shp){
+  
+  long_dims <- shp$long %>% range
+  lat_dims <- shp$lat %>% range
+  
+  if(abs(diff(long_dims)) < abs(diff(lat_dims))){
+    
+    mid_point <- (long_dims[1]+long_dims[2])/2
+    long_dims[2] <- mid_point + abs(diff(lat_dims))/2
+    long_dims[1] <- mid_point - abs(diff(lat_dims))/2
+    
+    
+  }else{
+    
+    mid_point <- (lat_dims[1]+lat_dims[2])/2
+    lat_dims[2] <- mid_point + abs(diff(long_dims))/2
+    lat_dims[1] <- mid_point - abs(diff(long_dims))/2
+    
+  }
+  
+  return(list(long_dims, lat_dims))
+  
+}
+
+
+```
+
+## Reproducing a Map of Redlining in Durham with R
+
+R has many packages for manipulating and visualizing geographic data.  In this tutorial, I load a shapefile containing data based on the Home Owners Loan Corporation's (HOLC) practice of assigning color codes to the neighborhoods of Durham.  These colors were using to inform underwriting standard of mortgages.  White households were more likely be located in green and blue neighborhoods, while black households were typically in yellow and red neighborhoods.  As a results, these mortgage underwriting practices, referred to today as redlining, contributed to racial inequality a large wealth disparity between black and white families that persists today.
+
+Geographic data on redlining in Durham is available online at [tim-maps.carto.com/tables/durhamredliningzones/public](https://tim-maps.carto.com/tables/durhamredliningzones/public).  This data is based on a 1937 zoning map from HOLC, pictured below.
+
+
+![Redlining in Durham](RedliningDurham.png){#id .class width=50% height=50%}
+
+
+First, I'll load the data into the R environment, using the readOGR function from the rgdal package.  This data is a shapefile contained in the durhamredliningzones folder on my harddrive.  The name of this shapefile is durhamredliningzones.shp, which is the second argument of the function.  I stored this data in the R environement as a object called durham_redline_shp. 
+\
+```{r, results="hide"}
+# Get shapefile of redlining by Durham zones 
+durham_redline_shp <- readOGR("Downloads/durhamredliningzones", "durhamredliningzones")
+```
+
+\
+Next, I turn this object into a tibble, which is a common kind of data frame.  In this tibble, called durham_redline_tbl, the rows represent geographic points and the columns provide information about each point (the longitude and latitude coordinates associated with the point, the shape to which it belongs, ect).
+\
+```{r,results = "hide",warnings=FALSE, message=FALSE}
+# Turning shapefile into dataframe 
+durham_redline_tbl <- as_tibble(fortify(durham_redline_shp))
+
+```
+\
+One important piece of information that is not currently contained in this tibble is the color code associated with each point.  First, I add an idea variable to the original shapefile.  Then, I merge this into the tibble, using the "id" variable as the merging variable.  This second operation was performed using the left_join function from the dplyr package.
+\
+```{r}
+# Merging in zone labels 
+durham_redline_shp@data$id <- rownames(durham_redline_shp@data)
+durham_redline_tbl <- left_join(durham_redline_tbl, durham_redline_shp@data, "id") 
+```
+
+\
+The color codes are now contained in a variable called label in durham_redline_tbl.  This variable has a letter, a hyphen, and a number that identify each
+zone in the data.  We're just interested in the color codes, so I transform that variable so that it only contains the letter associated with the color code.  Using str_sub function from the stringr package, I limit the label variable to contain just the first character of each element in the column.  For instance, "D-4" is changed to "D".
+\
+```{r}
+# limiting to color-coded areas
+durham_redline_tbl <- durham_redline_tbl %>% mutate(label = str_sub(label, 1, 1))
+```
+
+\
+I can now plot the data, using the ggplot package, the most popular R package for data visualization.
+\
+```{r,fig.align='center', fig.width=5, fig.height=5}
+# Final plot 
+ggplot(durham_redline_tbl %>% filter(label %in% c("A", "B", "C", "D")), 
+       aes(x=long, y=lat, group=id, fill=label)) + 
+       geom_polygon() + 
+       xlim(get_dims(durham_redline_tbl)[[1]]) + 
+       ylim(get_dims(durham_redline_tbl)[[2]]) + 
+       scale_fill_manual(values = c("#31ad71", "#719cd9", "#ffe482", "#fc6658")) + 
+       theme_void() + 
+       theme(legend.position="none")
+```

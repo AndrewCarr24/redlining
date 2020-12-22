@@ -1,0 +1,61 @@
+---
+title: "Redlining Highcharts"
+author: "Andrew Carr"
+date: "12/21/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Creating Interactive Maps with Highcharts and R
+
+R has many packages for creating interactive data visualizations.  One of my favorites is the highcharter package, which provides an API to Highcharts, an excellent SVG-based data visualization platform.  In this tutorial, I demonstrate the utility of highcharter for creating multilevel maps: maps that you can click on to drill down into additional data visualizations.  I will be working with redlining data. 
+
+Redlining was the federal government's practice of assigning color codes to neighborhoods.  These colors were used to inform mortgage underwriting standards from the 1930s to the 1970s.  White households were more likely be located in green and blue (higher rated) neighborhoods, while black households were typically found in yellow and red (lower rated) neighborhoods.  As a result, these mortgage underwriting practices contributed to the large wealth disparity between black and white families that persists today.
+
+Geographic data on redlining in Durham is available online at [tim-maps.carto.com/tables/durhamredliningzones/public](https://tim-maps.carto.com/tables/durhamredliningzones/public).  This data is based on a 1937 zoning map from Home Owners Loan Corporation, pictured below.
+
+![Redlining in Durham](Redlining_Durham.png){#id .class width=50% height=50%}
+First, I'll load the data into the R environment, using the readOGR function from the rgdal package.  This data is a shapefile contained in the durhamredliningzones folder on my harddrive.  The name of this shapefile is durhamredliningzones.shp, which is the second argument of the function.  I store this data in the R environement as an object called durham_redline_shp. 
+
+```{r}
+# Get shapefile of redlining by Durham zones 
+durham_redline_shp <- rgdal::readOGR("~/Downloads/durhamredliningzones", "durhamredliningzones")
+```
+
+Next, I perform several operations on this shapefile.  I attach an id variable ("id") to the shapefile, convert it into a tibble containing the geographic information in the shapefile, use the left_join function to merge the shapefile data into the tibble containing geographic information, and alter the "label" variable so it contains only the first character of the original string (e.g. "A" instead of "A4").   
+
+```{r}
+# Merging in id var
+durham_redline_shp@data$id <- rownames(durham_redline_shp@data)
+
+# Turning shapefile into dataframe 
+durham_redline_tbl <- fortify(durham_redline_shp) %>% as_tibble
+
+# Merging shapefile data into tbl 
+durham_redline_tbl <- left_join(durham_redline_tbl, durham_redline_shp@data, "id") 
+
+# limiting to color-coded areas
+durham_redline_tbl2 <- durham_redline_tbl %>% mutate(label = str_sub(label, 1, 1))
+
+# Making id numeric 
+durham_redline_tbl2 <- durham_redline_tbl2 %>% mutate(id = as.numeric(id))
+```
+
+My goal in this tutorial is to make a map that resembles the HOLC map shown above, but that you can click on to view how the distribution of black and white households has changed in each zone over time.  To do this, I use data from the 1970, 1980, 1990, 2000, and 2010 decennial censuses.  These data are publicly available and I downloaded them from IPUMS National Historical GIS website ([https://www.nhgis.org/](https://www.nhgis.org/)).  One issue with using Census data to estimate race distributions of redlined zones is that the Census does not aggregate their data to the level of zones given in the redlining data.  Instead, neighborhood information in contained in Census tracts.  My way of getting around this issue is to use to the gIntersection function from the rgeos package to determine the area of overlap between each zone and overlapping Census tracts.  Then, tract populations were distributed across the zones based on the areas associated with these overlaps.  This technique isn't perfect because it assumes uniform population density over these regions, but it is sufficient for our purposes.  I won't show the code for producing the underlying race data, but you can find it [here]() and [here]().
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
