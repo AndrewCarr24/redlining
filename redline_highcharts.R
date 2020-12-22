@@ -72,10 +72,16 @@ durham_redline_tbl_lng <- durham_redline_tbl_lng %>%
 # Getting JS 
 source("~/redlining_project/redline_highcharts_js2.R")
 
+for(i in 1:length(zone_idx)){
+c(durham_redline_json$features[zone_idx[i]][[1]]$properties$label, names_str[i]) %>% print
+}
+
+
 
 ##############
 #### Plot ####
 ##############
+
 
 # Highcharts global options 
 hcoptslang <- getOption("highcharter.lang")

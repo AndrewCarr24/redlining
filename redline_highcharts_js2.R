@@ -1,4 +1,4 @@
-# Runs inside redling_highcharts.R 
+# Runs inside redline_highcharts.R 
 
 drilldown_data_lst <- list()
 for(j in durham_redline_tbl_lng$name[1:24]){
@@ -29,7 +29,10 @@ for(j in durham_redline_tbl_lng$name[1:24]){
   }
 }
 
-# Drilldown JS 
+
+################
+# Drilldown JS #
+################
 
 js_start <- "function(e) {
 if (!e.seriesOptions) {
@@ -85,8 +88,9 @@ drilldown_data_lst
 
 zone_js <- paste0(js_start, paste(drilldown_json, collapse = ","), js_end)
 
-
-# Drillup JS 
+##############
+# Drillup JS #
+##############
 
 zone_js2 <- "function(e) {
 
